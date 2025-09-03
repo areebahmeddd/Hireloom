@@ -17,33 +17,18 @@ ai_model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 def parse_resume(job_desc, pdf_path):
-    print("Extracting text from document")
     resume_text = extract_pdf(pdf_path)
-    print(f"Extracted {len(resume_text)} characters")
-
-    print("Cleaning text content")
     clean_text = clean_data(resume_text)
     person_name = extract_name(resume_text)
-
-    print("Sending resume to Gemini for analysis")
     analysis = analyze_gemini(job_desc, clean_text)
-    print("Resume analysis completed")
-
-    print("Searching for GitHub profile")
+    
     github_user = find_github(resume_text)
     github_data = None
     if github_user:
-        print(f"Found username: {github_user}")
         job_words = job_desc.split()
         github_data = get_projects(github_user, job_words)
-        print("Repository analysis completed")
-    else:
-        print("No GitHub profile found")
-
-    print("Creating GitHub summary")
+    
     github_info = create_summary(github_data)
-
-    print("Combining resume and GitHub scores")
     final_score = combine_scores(job_desc, clean_text, github_info)
 
     return {
@@ -124,12 +109,10 @@ def analyze_gemini(job_desc, resume_text):
     """
 
     try:
-        print("Calling Gemini API")
         response = ai_model.generate_content(prompt)
         json_match = re.search(r"\{.*\}", response.text, re.DOTALL)
         if json_match:
             result = json.loads(json_match.group())
-            print("JSON parsed successfully")
             return result
         else:
             return {
@@ -146,12 +129,10 @@ def analyze_gemini(job_desc, resume_text):
 
 
 def find_github(resume_text):
-    # Pattern 1: github.com/username
     matches = re.findall(r"github\.com/([A-Za-z0-9_-]+)", resume_text)
     if matches:
         return matches[0]
 
-    # Pattern 2: Full GitHub URL
     matches = re.findall(r"https?://github\.com/([A-Za-z0-9_-]+)", resume_text)
     if matches:
         return matches[0]
@@ -160,7 +141,6 @@ def find_github(resume_text):
 
 
 def get_projects(github_user, job_words):
-    print(f"Connecting to GitHub API for user: {github_user}")
     github_token = os.getenv("GITHUB_TOKEN")
     auth = Auth.Token(github_token)
     git_client = Github(auth=auth)
@@ -170,7 +150,6 @@ def get_projects(github_user, job_words):
         repos = user.get_repos()
         relevant_repos = []
 
-        print("Analyzing repositories")
         repo_count = 0
         for repo in repos:
             repo_count += 1
@@ -186,7 +165,6 @@ def get_projects(github_user, job_words):
                 "languages": languages,
             }
 
-            # Check if repo is relevant to job
             if any(
                 kw.lower() in (repo.description or "").lower()
                 or kw.lower() in (repo.language or "").lower()
@@ -194,7 +172,6 @@ def get_projects(github_user, job_words):
             ):
                 relevant_repos.append(repo_data)
 
-        print(f"Found {len(relevant_repos)} relevant repos out of {repo_count} total")
         return {"total_repos": repos.totalCount, "relevant_repos": relevant_repos}
     except Exception as e:
         return {"error": str(e)}
@@ -220,12 +197,10 @@ def combine_scores(job_desc, resume_text, github_info):
     )
 
     try:
-        print("Calling Gemini for combined analysis")
         response = ai_model.generate_content(prompt)
         json_match = re.search(r"\{.*\}", response.text, re.DOTALL)
         if json_match:
             result = json.loads(json_match.group())
-            print("Combined scores calculated successfully")
             return result
         else:
             return {
@@ -239,31 +214,3 @@ def combine_scores(job_desc, resume_text, github_info):
             "github_score": 0,
             "resume_score": 0,
         }
-
-
-if __name__ == "__main__":
-    job_desc = """
-    We are seeking a motivated Junior Machine Learning Engineer with:
-    -A Bachelor's degree in Computer Science, Data Science, or a related field
-    -Strong foundational knowledge of Machine Learning algorithms and principles
-    -Proficiency in Python and key ML libraries (e.g., Scikit-learn, TensorFlow, or PyTorch)
-    -Experience with data preprocessing, visualization, and analysis (Pandas, NumPy, Matplotlib)
-    -Familiarity with version control systems, preferably Git
-    -Strong problem-solving abilities and a passion for innovation
-    -Excellent communication skills and ability to work in a collaborative team environment
-    """
-
-    try:
-        print("Starting resume analysis")
-        result = parse_resume(job_desc, r"data/resume.pdf")
-        person_name = list(result.keys())[0]
-
-        safe_filename = person_name.replace(" ", "-").lower()
-        filename = f"{safe_filename}_resume.json"
-
-        with open(filename, "w") as f:
-            json.dump(result, f, indent=2)
-
-        print("Analysis completed successfully")
-    except Exception as e:
-        print(f"Error: {str(e)}")
