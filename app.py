@@ -1,5 +1,5 @@
-import uvicorn
 import os
+import uvicorn
 import tempfile
 from fastapi import (
     FastAPI,
