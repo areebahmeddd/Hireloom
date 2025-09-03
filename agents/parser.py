@@ -5,6 +5,7 @@ import PyPDF2
 import google.generativeai as genai
 from github import Github, Auth
 from dotenv import load_dotenv
+from agents.database import upload_to_firestore
 
 load_dotenv()
 
@@ -43,18 +44,52 @@ def parse_resume(job_description, pdf_path):
         "phone": phone,
     }
 
-    return [
-        {
-            "candidate_name": name,
-            "resume_analysis": analysis,
-            "contact_info": contact_info,
-            "github_analysis": github_data,
-            "combined_score": score,
-        }
-    ]
+    result = {
+        "candidate_name": person_name,
+        "resume_analysis": analysis,
+        "contact_info": contact_data,
+        "github_analysis": github_data,
+        "combined_score": final_score,
+    }
+
+    doc_id = upload_to_firestore(result)
+    return [result]
+def extract_phone(resume_text):
+    match = re.search(r"(\+?\d{1,3}[\s-]?)?(\(?\d{3}\)?[\s-]?)?\d{3}[\s-]?\d{4}", resume_text)
+    return match.group(0) if match else None
+
+def extract_email(resume_text):
+    match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", resume_text)
+    return match.group(0) if match else None
+
+def extract_linkedin(resume_text):
+        match = re.search(r"(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+", resume_text)
+        if match:
+            # Ensure full URL
+            url = match.group(0)
+            if not url.startswith("http"):
+                url = "https://" + url
+            return url
+        # Also match linkedin.com/<username>
+        match2 = re.search(r"(https?://)?(www\.)?linkedin\.com/[a-zA-Z0-9_-]+", resume_text)
+        if match2:
+            url = match2.group(0)
+            if not url.startswith("http"):
+                url = "https://" + url
+            return url
+        return None
+
+def extract_github_link(resume_text):
+        match = re.search(r"(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+", resume_text)
+        if match:
+            url = match.group(0)
+            if not url.startswith("http"):
+                url = "https://" + url
+            return url
+        return None
 
 
-def read_pdf(pdf_path):
+def extract_pdf(pdf_path):
     text = ""
     try:
         with open(pdf_path, "rb") as file:

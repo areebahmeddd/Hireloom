@@ -14,8 +14,32 @@ from fastapi.responses import JSONResponse
 from agents.parser import parse_resume
 from agents.message import send_message
 from agents.call import call_handler, list_handler
+from agents.database import init_firestore
 
 app = FastAPI(title="Hireloom", description="", version="1.0.0")
+
+
+@app.get("/candidates/{candidate_name}")
+async def search_candidate(candidate_name: str):
+    db = init_firestore()
+    doc_id = candidate_name.replace(" ", "_")
+    doc_ref = db.collection("resumes").document(doc_id)
+    doc = doc_ref.get()
+    if doc.exists:
+        return JSONResponse(content=doc.to_dict())
+    else:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+@app.delete("/candidates/{candidate_name}")
+async def delete_candidate(candidate_name: str):
+    db = init_firestore()
+    doc_id = candidate_name.replace(" ", "_")
+    doc_ref = db.collection("resumes").document(doc_id)
+    if doc_ref.get().exists:
+        doc_ref.delete()
+        return {"message": f"Candidate '{candidate_name}' deleted."}
+    else:
+        raise HTTPException(status_code=404, detail="Candidate not found")
 
 
 @app.get("/")
