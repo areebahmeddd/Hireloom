@@ -1,10 +1,11 @@
 import uvicorn
 import os
 import tempfile
-from fastapi import FastAPI, BackgroundTasks, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, BackgroundTasks, Request, File, UploadFile, Form, HTTPException
 from fastapi.responses import JSONResponse
-from agents.call import call_handler, list_handler
 from agents.parser import parse_resume
+from agents.message import send_message
+from agents.call import call_handler, list_handler
 
 app = FastAPI(title="Hireloom", description="", version="1.0.0")
 
@@ -22,6 +23,13 @@ async def make_call(background_tasks: BackgroundTasks):
 @app.get("/get_recordings")
 async def get_recordings():
     return list_handler()
+
+
+@app.post("/send_message")
+async def send_message_endpoint(request: Request):
+    body = await request.json()
+    result = send_message(body["message"])
+    return result
 
 
 @app.post("/parse_resume")
