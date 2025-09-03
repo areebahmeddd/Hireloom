@@ -14,32 +14,9 @@ from fastapi.responses import JSONResponse
 from agents.parser import parse_resume
 from agents.message import send_message
 from agents.call import call_handler, list_handler
-from agents.database import init_firestore
+from database import db_init
 
-app = FastAPI(title="Hireloom", description="", version="1.0.0")
-
-
-@app.get("/candidates/{candidate_name}")
-async def search_candidate(candidate_name: str):
-    db = init_firestore()
-    doc_id = candidate_name.replace(" ", "_")
-    doc_ref = db.collection("resumes").document(doc_id)
-    doc = doc_ref.get()
-    if doc.exists:
-        return JSONResponse(content=doc.to_dict())
-    else:
-        raise HTTPException(status_code=404, detail="Candidate not found")
-
-@app.delete("/candidates/{candidate_name}")
-async def delete_candidate(candidate_name: str):
-    db = init_firestore()
-    doc_id = candidate_name.replace(" ", "_")
-    doc_ref = db.collection("resumes").document(doc_id)
-    if doc_ref.get().exists:
-        doc_ref.delete()
-        return {"message": f"Candidate '{candidate_name}' deleted."}
-    else:
-        raise HTTPException(status_code=404, detail="Candidate not found")
+app = FastAPI(title="Hireloom API", description="", version="1.0.0")
 
 
 @app.get("/")
@@ -61,17 +38,17 @@ async def parse_endpoint(
             )
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
-            content = await resume.read()
-            temp_file.write(content)
-            temp_file_path = temp_file.name
+            file_content = await resume.read()
+            temp_file.write(file_content)
+            temp_path = temp_file.name
 
         try:
-            result = parse_resume(job_description, temp_file_path)
-            return JSONResponse(content=result)
+            parse_result = parse_resume(job_description, temp_path)
+            return JSONResponse(content=parse_result)
 
         finally:
-            if os.path.exists(temp_file_path):
-                os.unlink(temp_file_path)
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
 
     except Exception as e:
         raise HTTPException(
@@ -91,9 +68,33 @@ async def get_recordings():
 
 @app.post("/send_message")
 async def send_endpoint(request: Request):
-    body = await request.json()
-    result = send_message(body["message"])
-    return JSONResponse(content=result)
+    request_body = await request.json()
+    send_result = send_message(request_body["message"])
+    return JSONResponse(content=send_result)
+
+
+@app.get("/candidates/{candidate_name}")
+async def search_candidate(candidate_name: str):
+    firestore_db = db_init()
+    doc_id = candidate_name.replace(" ", "_")
+    doc_ref = firestore_db.collection("resumes").document(doc_id)
+    candidate_doc = doc_ref.get()
+    if candidate_doc.exists:
+        return JSONResponse(content=candidate_doc.to_dict())
+    else:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+
+@app.delete("/candidates/{candidate_name}")
+async def delete_candidate(candidate_name: str):
+    firestore_db = db_init()
+    doc_id = candidate_name.replace(" ", "_")
+    doc_ref = firestore_db.collection("resumes").document(doc_id)
+    if doc_ref.get().exists:
+        doc_ref.delete()
+        return {"message": f"Candidate '{candidate_name}' deleted."}
+    else:
+        raise HTTPException(status_code=404, detail="Candidate not found")
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ import PyPDF2
 import google.generativeai as genai
 from github import Github, Auth
 from dotenv import load_dotenv
-from agents.database import upload_to_firestore
+from database import data_upload
 
 load_dotenv()
 
@@ -45,51 +45,18 @@ def parse_resume(job_description, pdf_path):
     }
 
     result = {
-        "candidate_name": person_name,
+        "candidate_name": name,
+        "contact_info": contact_info,
         "resume_analysis": analysis,
-        "contact_info": contact_data,
         "github_analysis": github_data,
-        "combined_score": final_score,
+        "combined_score": score,
     }
 
-    doc_id = upload_to_firestore(result)
+    data_upload(result)
     return [result]
-def extract_phone(resume_text):
-    match = re.search(r"(\+?\d{1,3}[\s-]?)?(\(?\d{3}\)?[\s-]?)?\d{3}[\s-]?\d{4}", resume_text)
-    return match.group(0) if match else None
-
-def extract_email(resume_text):
-    match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", resume_text)
-    return match.group(0) if match else None
-
-def extract_linkedin(resume_text):
-        match = re.search(r"(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+", resume_text)
-        if match:
-            # Ensure full URL
-            url = match.group(0)
-            if not url.startswith("http"):
-                url = "https://" + url
-            return url
-        # Also match linkedin.com/<username>
-        match2 = re.search(r"(https?://)?(www\.)?linkedin\.com/[a-zA-Z0-9_-]+", resume_text)
-        if match2:
-            url = match2.group(0)
-            if not url.startswith("http"):
-                url = "https://" + url
-            return url
-        return None
-
-def extract_github_link(resume_text):
-        match = re.search(r"(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+", resume_text)
-        if match:
-            url = match.group(0)
-            if not url.startswith("http"):
-                url = "https://" + url
-            return url
-        return None
 
 
-def extract_pdf(pdf_path):
+def read_pdf(pdf_path):
     text = ""
     try:
         with open(pdf_path, "rb") as file:
@@ -209,7 +176,6 @@ def analyze_ai(job_description, resume_text):
                 "skills_match": {"matched_skills": [], "missing_skills": []},
                 "experience_evaluation": {"years_experience": 0, "relevance": "low"},
                 "education_evaluation": {"degree_match": False, "education_level": ""},
-                "keyword_analysis": {"matched_keywords": [], "missing_keywords": []},
                 "strengths": [],
                 "weaknesses": [],
                 "overall_assessment": "Failed to parse response",
@@ -264,12 +230,12 @@ def get_projects(github_user, job_words):
         return {"error": str(e)}
 
 
-def make_summary(data):
-    if not data or "error" in data:
+def make_summary(github_data):
+    if not github_data or "error" in github_data:
         return "No valid GitHub data."
 
-    summary = f"Total Public Repos: {data.get('total_repos', 'N/A')}\n"
-    for repo in data.get("relevant_repos", []):
+    summary = f"Total Public Repos: {github_data.get('total_repos', 'N/A')}\n"
+    for repo in github_data.get("relevant_repos", []):
         summary += f"Project: {repo['name']}\nDescription: {repo['description']}\nLanguages: {', '.join(repo['languages'])}\n---\n"
     return summary
 
