@@ -15,37 +15,20 @@ async def root():
     return {"message": "Server OK"}
 
 
-@app.post("/make_call")
-async def make_call(background_tasks: BackgroundTasks):
-    return await call_handler(background_tasks)
-
-
-@app.get("/get_recordings")
-async def get_recordings():
-    return list_handler()
-
-
-@app.post("/send_message")
-async def send_message_endpoint(request: Request):
-    body = await request.json()
-    result = send_message(body["message"])
-    return result
-
-
 @app.post("/parse_resume")
-async def parse_resume_endpoint(
-    resume_pdf: UploadFile = File(...),
+async def parse_endpoint(
+    resume: UploadFile = File(...),
     job_description: str = Form(...)
 ):
     try:
-        if not resume_pdf.filename.lower().endswith('.pdf'):
+        if not resume.filename.lower().endswith('.pdf'):
             raise HTTPException(status_code=400, detail="File must be a PDF")
         
         if not job_description.strip():
             raise HTTPException(status_code=400, detail="Job description cannot be empty")
         
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
-            content = await resume_pdf.read()
+            content = await resume.read()
             temp_file.write(content)
             temp_file_path = temp_file.name
         
@@ -60,6 +43,22 @@ async def parse_resume_endpoint(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing resume: {str(e)}")
 
+
+@app.post("/make_call")
+async def make_call(tasks: BackgroundTasks):
+    return await call_handler(tasks)
+
+
+@app.get("/get_recordings")
+async def get_recordings():
+    return list_handler()
+
+
+@app.post("/send_message")
+async def send_endpoint(request: Request):
+    body = await request.json()
+    result = send_message(body["message"])
+    return JSONResponse(content=result)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -18,21 +18,16 @@ YOUR_PHONE_NUMBER = os.getenv("YOUR_PHONE_NUMBER")
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 
-async def call_handler(background_tasks: BackgroundTasks):
-    print("Initiating survey call")
+async def call_handler(tasks: BackgroundTasks):
     try:
-        print("Creating TwiML script")
         twiml = create_twiml()
 
-        print(f"Placing call to {YOUR_PHONE_NUMBER}")
         call = client.calls.create(
             twiml=twiml, to=YOUR_PHONE_NUMBER, from_=TWILIO_PHONE_NUMBER
         )
 
-        print("Scheduling recording download")
-        background_tasks.add_task(download_recordings, call.sid, 60)
+        tasks.add_task(get_recordings, call.sid, 60)
 
-        print("Call initiated successfully")
         return {
             "status": "success",
             "call_sid": call.sid,
@@ -49,14 +44,12 @@ def list_handler():
     recordings_dir = "recordings"
 
     if not os.path.exists(recordings_dir):
-        print("No recordings directory found")
         return {"recordings": [], "total": 0}
 
     files = os.listdir(recordings_dir)
     mp3_files = [f for f in files if f.endswith(".mp3")]
     json_files = [f for f in files if f.endswith(".json")]
 
-    print(f"Found {len(mp3_files)} recordings and {len(json_files)} summaries")
     return {
         "recordings": mp3_files,
         "summaries": json_files,
@@ -85,15 +78,13 @@ def create_twiml():
 </Response>"""
 
 
-async def download_recordings(call_sid: str, delay: int = 60):
+async def get_recordings(call_sid: str, delay: int = 60):
     await asyncio.sleep(delay)
 
     try:
-        print("Fetching recordings from Twilio")
         recordings = client.recordings.list(call_sid=call_sid)
 
         if not recordings:
-            print("No recordings found for this call")
             return
 
         recordings_dir = "recordings"
@@ -109,11 +100,9 @@ async def download_recordings(call_sid: str, delay: int = 60):
             "recordings": [],
         }
 
-        print(f"Processing {len(recordings)} recordings")
         for i, recording in enumerate(recordings):
             question_type = questions[i] if i < len(questions) else f"question_{i + 1}"
 
-            print(f"Downloading recording {i + 1}: {question_type}")
             recording_url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Recordings/{recording.sid}.mp3"
             response = requests.get(
                 recording_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -127,7 +116,6 @@ async def download_recordings(call_sid: str, delay: int = 60):
                 with open(filename, "wb") as f:
                     f.write(response.content)
 
-                print(f"Saved: {filename}")
                 recording_info = {
                     "question": question_type,
                     "recording_sid": recording.sid,
@@ -141,6 +129,5 @@ async def download_recordings(call_sid: str, delay: int = 60):
         with open(summary_file, "w") as f:
             json.dump(call_data, f, indent=2)
 
-        print("Recording download completed")
-    except Exception as e:
-        print(f"Error downloading recordings: {e}")
+    except Exception:
+        pass

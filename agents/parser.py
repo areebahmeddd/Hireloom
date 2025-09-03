@@ -16,26 +16,27 @@ genai.configure(api_key=gemini_key)
 ai_model = genai.GenerativeModel("gemini-2.5-flash")
 
 
-def parse_resume(job_desc, pdf_path):
-    resume_text = extract_pdf(pdf_path)
+def parse_resume(job_description, pdf_path):
+    resume_text = read_pdf(pdf_path)
     clean_text = clean_data(resume_text)
-    person_name = extract_name(resume_text)
-    analysis = analyze_gemini(job_desc, clean_text)
     
-    email = extract_email(resume_text)
-    linkedin = extract_linkedin(resume_text)
-    github_link = extract_github_link(resume_text)
-    phone = extract_phone(resume_text)
-    github_user = find_github(resume_text)
+    name = get_name(resume_text)
+    email = get_email(resume_text)
+    phone = get_phone(resume_text)
+    linkedin = get_linkedin(resume_text)
+    github_link = get_github(resume_text)
+    
+    analysis = analyze_ai(job_description, clean_text)
     github_data = None
-    if github_user:
-        job_words = job_desc.split()
-        github_data = get_projects(github_user, job_words)
+    user = find_github(resume_text)
+    if user:
+        job_words = job_description.split()
+        github_data = get_projects(user, job_words)
+    
+    summary = make_summary(github_data)
+    score = score_candidate(job_description, clean_text, summary)
 
-    github_info = create_summary(github_data)
-    final_score = combine_scores(job_desc, clean_text, github_info)
-
-    contact_data = {
+    contact_info = {
         "email": email,
         "linkedin": linkedin,
         "github": github_link,
@@ -44,49 +45,16 @@ def parse_resume(job_desc, pdf_path):
 
     return [
         {
-            "candidate_name": person_name,
+            "candidate_name": name,
             "resume_analysis": analysis,
-            "contact_info": contact_data,
+            "contact_info": contact_info,
             "github_analysis": github_data,
-            "combined_score": final_score,
+            "combined_score": score,
         }
     ]
-def extract_phone(resume_text):
-    match = re.search(r"(\+?\d{1,3}[\s-]?)?(\(?\d{3}\)?[\s-]?)?\d{3}[\s-]?\d{4}", resume_text)
-    return match.group(0) if match else None
-
-def extract_email(resume_text):
-    match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", resume_text)
-    return match.group(0) if match else None
-
-def extract_linkedin(resume_text):
-        match = re.search(r"(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+", resume_text)
-        if match:
-            # Ensure full URL
-            url = match.group(0)
-            if not url.startswith("http"):
-                url = "https://" + url
-            return url
-        # Also match linkedin.com/<username>
-        match2 = re.search(r"(https?://)?(www\.)?linkedin\.com/[a-zA-Z0-9_-]+", resume_text)
-        if match2:
-            url = match2.group(0)
-            if not url.startswith("http"):
-                url = "https://" + url
-            return url
-        return None
-
-def extract_github_link(resume_text):
-        match = re.search(r"(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+", resume_text)
-        if match:
-            url = match.group(0)
-            if not url.startswith("http"):
-                url = "https://" + url
-            return url
-        return None
 
 
-def extract_pdf(pdf_path):
+def read_pdf(pdf_path):
     text = ""
     try:
         with open(pdf_path, "rb") as file:
@@ -104,17 +72,17 @@ def clean_data(text):
     return text.strip()
 
 
-def extract_name(resume_text):
+def get_name(resume_text):
     lines = resume_text.split("\n")
     first_lines = " ".join(lines[:3])
 
-    name_patterns = [
+    patterns = [
         r"^([A-Z][a-z]+ [A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
         r"(?:Name|Full Name):\s*([A-Z][a-z]+ [A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
         r"\b([A-Z][a-z]+ [A-Z][a-z]+)\b",
     ]
 
-    for pattern in name_patterns:
+    for pattern in patterns:
         matches = re.findall(pattern, first_lines)
         if matches:
             return matches[0].strip()
@@ -122,12 +90,49 @@ def extract_name(resume_text):
     return "Unknown Person"
 
 
-def analyze_gemini(job_desc, resume_text):
+def get_phone(resume_text):
+    match = re.search(r"(\+?\d{1,3}[\s-]?)?(\(?\d{3}\)?[\s-]?)?\d{3}[\s-]?\d{4}", resume_text)
+    return match.group(0) if match else None
+
+
+def get_email(resume_text):
+    match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", resume_text)
+    return match.group(0) if match else None
+
+
+def get_linkedin(resume_text):
+    match = re.search(r"(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+", resume_text)
+    if match:
+        url = match.group(0)
+        if not url.startswith("http"):
+            url = "https://" + url
+        return url
+    
+    match2 = re.search(r"(https?://)?(www\.)?linkedin\.com/[a-zA-Z0-9_-]+", resume_text)
+    if match2:
+        url = match2.group(0)
+        if not url.startswith("http"):
+            url = "https://" + url
+        return url
+    return None
+
+
+def get_github(resume_text):
+    match = re.search(r"(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+", resume_text)
+    if match:
+        url = match.group(0)
+        if not url.startswith("http"):
+            url = "https://" + url
+        return url
+    return None
+
+
+def analyze_ai(job_description, resume_text):
     prompt = f"""
     Analyze this resume against the given job description and provide a comprehensive evaluation.
 
     JOB DESCRIPTION:
-    {job_desc}
+    {job_description}
 
     RESUME:
     {resume_text}
@@ -187,19 +192,16 @@ def find_github(resume_text):
 
 
 def get_projects(github_user, job_words):
-    github_token = os.getenv("GITHUB_TOKEN")
-    auth = Auth.Token(github_token)
-    git_client = Github(auth=auth)
+    token = os.getenv("GITHUB_TOKEN")
+    auth = Auth.Token(token)
+    client = Github(auth=auth)
 
     try:
-        user = git_client.get_user(github_user)
+        user = client.get_user(github_user)
         repos = user.get_repos()
         relevant_repos = []
 
-        repo_count = 0
         for repo in repos:
-            repo_count += 1
-
             try:
                 languages = list(repo.get_languages().keys())
             except Exception:
@@ -223,20 +225,20 @@ def get_projects(github_user, job_words):
         return {"error": str(e)}
 
 
-def create_summary(github_data):
-    if not github_data or "error" in github_data:
+def make_summary(data):
+    if not data or "error" in data:
         return "No valid GitHub data."
 
-    summary = f"Total Public Repos: {github_data.get('total_repos', 'N/A')}\n"
-    for repo in github_data.get("relevant_repos", []):
+    summary = f"Total Public Repos: {data.get('total_repos', 'N/A')}\n"
+    for repo in data.get("relevant_repos", []):
         summary += f"Project: {repo['name']}\nDescription: {repo['description']}\nLanguages: {', '.join(repo['languages'])}\n---\n"
     return summary
 
 
-def combine_scores(job_desc, resume_text, github_info):
+def score_candidate(job_description, resume_text, github_info):
     prompt = (
         f"Analyze the following candidate for suitability for the job. Consider both resume and GitHub profile data.\n\n"
-        f"JOB DESCRIPTION:\n{job_desc}\n\n"
+        f"JOB DESCRIPTION:\n{job_description}\n\n"
         f"RESUME:\n{resume_text}\n\n"
         f"GITHUB PROFILE DATA:\n{github_info}\n\n"
         "Provide a JSON response with:\n{\n  'suitability_score': 0-100,\n  'github_score': 0-100,\n  'resume_score': 0-100\n}\n"
