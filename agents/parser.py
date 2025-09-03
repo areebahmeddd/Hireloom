@@ -19,20 +19,20 @@ ai_model = genai.GenerativeModel("gemini-2.5-flash")
 def parse_resume(job_description, pdf_path):
     resume_text = read_pdf(pdf_path)
     clean_text = clean_data(resume_text)
-    
+
     name = get_name(resume_text)
     email = get_email(resume_text)
     phone = get_phone(resume_text)
     linkedin = get_linkedin(resume_text)
     github_link = get_github(resume_text)
-    
+
     analysis = analyze_ai(job_description, clean_text)
     github_data = None
     user = find_github(resume_text)
     if user:
         job_words = job_description.split()
         github_data = get_projects(user, job_words)
-    
+
     summary = make_summary(github_data)
     score = score_candidate(job_description, clean_text, summary)
 
@@ -91,7 +91,9 @@ def get_name(resume_text):
 
 
 def get_phone(resume_text):
-    match = re.search(r"(\+?\d{1,3}[\s-]?)?(\(?\d{3}\)?[\s-]?)?\d{3}[\s-]?\d{4}", resume_text)
+    match = re.search(
+        r"(\+?\d{1,3}[\s-]?)?(\(?\d{3}\)?[\s-]?)?\d{3}[\s-]?\d{4}", resume_text
+    )
     return match.group(0) if match else None
 
 
@@ -101,13 +103,15 @@ def get_email(resume_text):
 
 
 def get_linkedin(resume_text):
-    match = re.search(r"(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+", resume_text)
+    match = re.search(
+        r"(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+", resume_text
+    )
     if match:
         url = match.group(0)
         if not url.startswith("http"):
             url = "https://" + url
         return url
-    
+
     match2 = re.search(r"(https?://)?(www\.)?linkedin\.com/[a-zA-Z0-9_-]+", resume_text)
     if match2:
         url = match2.group(0)

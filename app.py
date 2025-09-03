@@ -1,7 +1,15 @@
 import uvicorn
 import os
 import tempfile
-from fastapi import FastAPI, BackgroundTasks, Request, File, UploadFile, Form, HTTPException
+from fastapi import (
+    FastAPI,
+    BackgroundTasks,
+    Request,
+    File,
+    UploadFile,
+    Form,
+    HTTPException,
+)
 from fastapi.responses import JSONResponse
 from agents.parser import parse_resume
 from agents.message import send_message
@@ -17,31 +25,34 @@ async def root():
 
 @app.post("/parse_resume")
 async def parse_endpoint(
-    resume: UploadFile = File(...),
-    job_description: str = Form(...)
+    resume: UploadFile = File(...), job_description: str = Form(...)
 ):
     try:
-        if not resume.filename.lower().endswith('.pdf'):
+        if not resume.filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="File must be a PDF")
-        
+
         if not job_description.strip():
-            raise HTTPException(status_code=400, detail="Job description cannot be empty")
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+            raise HTTPException(
+                status_code=400, detail="Job description cannot be empty"
+            )
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
             content = await resume.read()
             temp_file.write(content)
             temp_file_path = temp_file.name
-        
+
         try:
             result = parse_resume(job_description, temp_file_path)
             return JSONResponse(content=result)
-        
+
         finally:
             if os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
-    
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing resume: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error processing resume: {str(e)}"
+        )
 
 
 @app.post("/make_call")
@@ -59,6 +70,7 @@ async def send_endpoint(request: Request):
     body = await request.json()
     result = send_message(body["message"])
     return JSONResponse(content=result)
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
