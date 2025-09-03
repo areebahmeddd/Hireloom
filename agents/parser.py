@@ -22,22 +22,68 @@ def parse_resume(job_desc, pdf_path):
     person_name = extract_name(resume_text)
     analysis = analyze_gemini(job_desc, clean_text)
     
+    email = extract_email(resume_text)
+    linkedin = extract_linkedin(resume_text)
+    github_link = extract_github_link(resume_text)
+    phone = extract_phone(resume_text)
     github_user = find_github(resume_text)
     github_data = None
     if github_user:
         job_words = job_desc.split()
         github_data = get_projects(github_user, job_words)
-    
+
     github_info = create_summary(github_data)
     final_score = combine_scores(job_desc, clean_text, github_info)
 
-    return {
-        person_name: {
+    contact_data = {
+        "email": email,
+        "linkedin": linkedin,
+        "github": github_link,
+        "phone": phone,
+    }
+
+    return [
+        {
+            "candidate_name": person_name,
             "resume_analysis": analysis,
+            "contact_info": contact_data,
             "github_analysis": github_data,
             "combined_score": final_score,
         }
-    }
+    ]
+def extract_phone(resume_text):
+    match = re.search(r"(\+?\d{1,3}[\s-]?)?(\(?\d{3}\)?[\s-]?)?\d{3}[\s-]?\d{4}", resume_text)
+    return match.group(0) if match else None
+
+def extract_email(resume_text):
+    match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", resume_text)
+    return match.group(0) if match else None
+
+def extract_linkedin(resume_text):
+        match = re.search(r"(https?://)?(www\.)?linkedin\.com/in/[a-zA-Z0-9_-]+", resume_text)
+        if match:
+            # Ensure full URL
+            url = match.group(0)
+            if not url.startswith("http"):
+                url = "https://" + url
+            return url
+        # Also match linkedin.com/<username>
+        match2 = re.search(r"(https?://)?(www\.)?linkedin\.com/[a-zA-Z0-9_-]+", resume_text)
+        if match2:
+            url = match2.group(0)
+            if not url.startswith("http"):
+                url = "https://" + url
+            return url
+        return None
+
+def extract_github_link(resume_text):
+        match = re.search(r"(https?://)?(www\.)?github\.com/[a-zA-Z0-9_-]+", resume_text)
+        if match:
+            url = match.group(0)
+            if not url.startswith("http"):
+                url = "https://" + url
+            return url
+        return None
 
 
 def extract_pdf(pdf_path):
