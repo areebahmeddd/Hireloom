@@ -5,10 +5,7 @@ It combines multiple **AI agents** into a single pipeline that automates **job p
 
 ---
 
-## 🌟 Features  
-
-- **Autonomous Job Posting Agent**  
-  Automatically posts job listings to platforms like **LinkedIn, Naukri, Unstop, Internshala**, etc.  
+## 🌟 Features    
 
 - **Agentic Pipeline** (5 AI Agents):  
   1. **Resume Parser** → Parses resumes + GitHub repos to evaluate candidate relevance.  
@@ -95,6 +92,7 @@ Hackathon builders of **Hireloom** 💡
 ##📜 License
 
 This project is licensed under the MIT License.
+
 
 
 
