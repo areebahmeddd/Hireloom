@@ -1,6 +1,6 @@
 # 🚀 Hireloom – Autonomous Hiring Intelligence Agent  
 
-Hireloom is an **end-to-end autonomous hiring platform** built for the **AI & Productivity track** of Recurzivw V2.  
+Hireloom is an **end-to-end autonomous hiring platform** built for the **AI & Productivity track** of Recurzive V2.  
 It combines multiple **AI agents** into a single pipeline that automates **job posting, candidate evaluation, scheduling, and interview intelligence** – freeing recruiters to focus on decisions, not logistics.  
 
 ---
@@ -95,6 +95,7 @@ Hackathon builders of **Hireloom** 💡
 ##📜 License
 
 This project is licensed under the MIT License.
+
 
 
 
