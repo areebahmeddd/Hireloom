@@ -49,7 +49,6 @@ Each step is powered by **specialized AI agents**, orchestrated through **LangCh
 - **Unified Experience** → Replaces multiple tools (LinkedIn, Calendly, ATS, WhatsApp) with one seamless platform.  
 
 ---
----
 
 ## 🚀 Getting Started  
 
@@ -82,7 +81,6 @@ npm run dev
 - **Call Intelligence** → Captures insights and updates recruiter dashboard.  
 
 ---
----
 
 ## 👨‍💻 Team  
 
@@ -97,5 +95,6 @@ Hackathon builders of **Hireloom** 💡
 ##📜 License
 
 This project is licensed under the MIT License.
+
 
 
